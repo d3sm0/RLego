@@ -12,3 +12,8 @@ def polyak_update(
         for param, target_param in zip(params, target_params):
             target_param.data.mul_(1 - tau)
             torch.add(target_param.data, param.data, alpha=tau, out=target_param.data)
+
+
+def _maybe_stop_grad(value: torch.Tensor, stop_grad: bool) -> None:
+    if stop_grad:
+        value.detach_()

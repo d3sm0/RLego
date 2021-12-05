@@ -1,4 +1,5 @@
 import torch
+from rlego.utils import _maybe_stop_grad
 
 
 def lambda_returns(r_t: torch.Tensor,
@@ -65,12 +66,67 @@ def lambda_returns(r_t: torch.Tensor,
         returns.insert(0, g)
 
     returns = torch.tensor(returns)
-    if stop_target_gradients:
-        returns.detach_()
-
+    _maybe_stop_grad(returns, stop_target_gradients)
     return returns
 
 
-def discounted_returns(r_t, discount_t, v_t, stop_grad=False):
+def discounted_returns(r_t: torch.Tensor,
+                       discount_t: torch.Tensor,
+                       v_t: torch.Tensor,
+                       stop_target_gradients: bool = False) -> torch.Tensor:
     bootstrapped_v = torch.ones_like(discount_t) * v_t
-    return lambda_returns(r_t, discount_t, bootstrapped_v, lambda_=1, stop_target_gradients=stop_grad)
+    return lambda_returns(r_t, discount_t, bootstrapped_v, lambda_=1, stop_target_gradients=stop_target_gradients)
+
+
+def n_step_bootstrapped_returns(
+    r_t: torch.Tensor,
+    discount_t: torch.Tensor,
+    v_t: torch.Tensor,
+    n: int,
+    lambda_t: float = 1.,
+    stop_target_gradients: bool = False,
+) -> torch.Tensor:
+    """Computes strided n-step bootstrapped return targets over a sequence.
+  The returns are computed according to the below equation iterated `n` times:
+     Gₜ = rₜ₊₁ + γₜ₊₁ [(1 - λₜ₊₁) vₜ₊₁ + λₜ₊₁ Gₜ₊₁].
+  When lambda_t == 1. (default), this reduces to
+     Gₜ = rₜ₊₁ + γₜ₊₁ * (rₜ₊₂ + γₜ₊₂ * (... * (rₜ₊ₙ + γₜ₊ₙ * vₜ₊ₙ ))).
+  Args:
+    r_t: rewards at times [1, ..., T].
+    discount_t: discounts at times [1, ..., T].
+    v_t: state or state-action values to bootstrap from at time [1, ...., T].
+    n: number of steps over which to accumulate reward before bootstrapping.
+    lambda_t: lambdas at times [1, ..., T]. Shape is [], or [T-1].
+    stop_target_gradients: bool indicating whether or not to apply stop gradient
+      to targets.
+  Returns:
+    estimated bootstrapped returns at times [0, ...., T-1]
+  """
+    # chex.assert_rank([r_t, discount_t, v_t, lambda_t], [1, 1, 1, {0, 1}])
+    # chex.assert_type([r_t, discount_t, v_t, lambda_t], float)
+    # chex.assert_equal_shape([r_t, discount_t, v_t])
+    seq_len = r_t.shape[0]
+
+    # Maybe change scalar lambda to an array.
+    lambda_t = torch.ones_like(discount_t) * lambda_t
+
+    # Shift bootstrap values by n and pad end of sequence with last value v_t[-1].
+    pad_size = min(n - 1, seq_len)
+    targets = torch.cat([v_t[n - 1:], torch.tensor([v_t[-1]] * pad_size)])
+
+    # Pad sequences. Shape is now (T + n - 1,).
+    r_t = torch.cat([r_t, torch.zeros(n - 1)])
+    discount_t = torch.cat([discount_t, torch.ones(n - 1)])
+    lambda_t = torch.cat([lambda_t, torch.ones(n - 1)])
+    v_t = torch.cat([v_t, torch.tensor([v_t[-1]] * (n - 1))])
+
+    # Work backwards to compute n-step returns.
+    for i in reversed(range(n)):
+        r_ = r_t[i:i + seq_len]
+        discount_ = discount_t[i:i + seq_len]
+        lambda_ = lambda_t[i:i + seq_len]
+        v_ = v_t[i:i + seq_len]
+        targets = r_ + discount_ * ((1. - lambda_) * v_ + lambda_ * targets)
+
+    _maybe_stop_grad(targets, stop_target_gradients)
+    return targets
