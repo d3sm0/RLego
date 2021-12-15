@@ -16,4 +16,5 @@ def polyak_update(
 
 def _maybe_stop_grad(value: torch.Tensor, stop_grad: bool) -> None:
     if stop_grad:
-        value.detach_()
+        value.detach()
+    return value

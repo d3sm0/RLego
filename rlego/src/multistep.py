@@ -1,5 +1,5 @@
 import torch
-from rlego.utils import _maybe_stop_grad
+from rlego.src.utils import _maybe_stop_grad
 
 
 def lambda_returns(r_t: torch.Tensor,
