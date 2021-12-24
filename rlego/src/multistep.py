@@ -1,5 +1,4 @@
 import torch
-from rlego.src.utils import _maybe_stop_grad
 
 
 def lambda_returns(r_t: torch.Tensor,
@@ -66,7 +65,8 @@ def lambda_returns(r_t: torch.Tensor,
         returns.insert(0, g)
 
     returns = torch.tensor(returns)
-    _maybe_stop_grad(returns, stop_target_gradients)
+    if stop_target_gradients:
+        returns = returns.detach()
     return returns
 
 
@@ -79,12 +79,12 @@ def discounted_returns(r_t: torch.Tensor,
 
 
 def n_step_bootstrapped_returns(
-    r_t: torch.Tensor,
-    discount_t: torch.Tensor,
-    v_t: torch.Tensor,
-    n: int,
-    lambda_t: float = 1.,
-    stop_target_gradients: bool = False,
+        r_t: torch.Tensor,
+        discount_t: torch.Tensor,
+        v_t: torch.Tensor,
+        n: int,
+        lambda_t: float = 1.,
+        stop_target_gradients: bool = False,
 ) -> torch.Tensor:
     """Computes strided n-step bootstrapped return targets over a sequence.
   The returns are computed according to the below equation iterated `n` times:
@@ -128,5 +128,6 @@ def n_step_bootstrapped_returns(
         v_ = v_t[i:i + seq_len]
         targets = r_ + discount_ * ((1. - lambda_) * v_ + lambda_ * targets)
 
-    _maybe_stop_grad(targets, stop_target_gradients)
+    if stop_target_gradients:
+        targets = targets.detach()
     return targets
