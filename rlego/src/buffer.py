@@ -10,10 +10,10 @@ class Transition:
     reward: torch.tensor
     next_state: torch.tensor
     done: torch.tensor
-    noise: torch.tensor
+    info: dict
 
     def __iter__(self):
-        for attr in ["state", "action", "reward", "next_state", "done", "noise"]:
+        for attr in ["state", "action", "reward", "next_state", "done", "info"]:
             yield getattr(self, attr)
 
 
