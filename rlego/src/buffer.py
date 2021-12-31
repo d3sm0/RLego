@@ -41,13 +41,13 @@ class Trajectory:
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
     def get_trajectory(self) -> Tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor, torch.tensor, List[dict]]:
-        state, action, reward, next_state, done, info = list(zip(*self.data))
-        state = torch.stack(state, 0)
-        action = torch.stack(action, 0)
-        reward = torch.tensor(reward)
-        next_state = torch.stack(next_state, 0)
-        done = torch.tensor(done)
-        return state, action, reward, next_state, done, info
+        states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
+        states = torch.stack(states, 0)
+        actions = torch.stack(actions, 0)
+        rewards = torch.tensor(rewards)
+        next_states = torch.stack(next_states, 0)
+        dones = torch.tensor(dones)
+        return states, actions, rewards, next_states, dones, infos
 
 
 class Buffer:
