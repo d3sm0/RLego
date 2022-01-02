@@ -79,12 +79,12 @@ def discounted_returns(r_t: torch.Tensor,
 
 
 def n_step_bootstrapped_returns(
-        r_t: torch.Tensor,
-        discount_t: torch.Tensor,
-        v_t: torch.Tensor,
-        n: int,
-        lambda_t: float = 1.,
-        stop_target_gradients: bool = False,
+    r_t: torch.Tensor,
+    discount_t: torch.Tensor,
+    v_t: torch.Tensor,
+    n: int,
+    lambda_t: float = 1.,
+    stop_target_gradients: bool = False,
 ) -> torch.Tensor:
     """Computes strided n-step bootstrapped return targets over a sequence.
   The returns are computed according to the below equation iterated `n` times:
