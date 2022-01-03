@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Tuple, List
+from typing import List, Union
 
 import torch
 
@@ -11,7 +11,7 @@ class Transition:
     reward: torch.tensor
     next_state: torch.tensor
     done: torch.tensor
-    info: dict
+    info: Union[dict, List[dict]]
 
     def __iter__(self):
         for attr in ["state", "action", "reward", "next_state", "done", "info"]:
@@ -20,7 +20,7 @@ class Transition:
 
 class Trajectory:
     def __init__(self):
-        self.data = []
+        self.data: List[Transition] = []
 
     def __len__(self):
         return len(self.data)
@@ -31,7 +31,7 @@ class Trajectory:
     def __iter__(self):
         return iter(self.data)
 
-    def get_partial(self, start_idx, horizon):
+    def get_partial(self, start_idx, horizon) -> List[Transition]:
         horizon = min(self.__len__() - start_idx, horizon)
         return self.data[start_idx:start_idx + horizon]
 
@@ -40,14 +40,14 @@ class Trajectory:
         # TODO we should be able to have something N X T but it seems hard for now we keep it like this
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
-    def get_trajectory(self) -> Tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor, torch.tensor, List[dict]]:
+    def get_trajectory(self) -> Transition:
         states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
         states = torch.stack(states, 0)
         actions = torch.stack(actions, 0)
         rewards = torch.tensor(rewards)
         next_states = torch.stack(next_states, 0)
         dones = torch.tensor(dones)
-        return states, actions, rewards, next_states, dones, infos
+        return Transition(states, actions, rewards, next_states, dones, infos)
 
 
 class Buffer:
@@ -71,7 +71,7 @@ class Buffer:
             self._data[self._next_idx] = transition
         self._next_idx = (self._next_idx + 1) % self._buffer_size
 
-    def sample(self, batch_size: int):
+    def sample(self, batch_size: int) -> Transition:
         idxes = torch.randint(len(self._data) - 1, (batch_size,))
 
         batch = [self._data[idx] for idx in idxes]
