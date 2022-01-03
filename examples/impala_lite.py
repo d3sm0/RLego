@@ -31,7 +31,6 @@ class Transition(NamedTuple):
 
 class SimpleNet(nn.Module):
     """A simple network."""
-
     def __init__(self, obs_dim: int, num_actions: int, h_dim: int = 32):
         super().__init__()
         self._num_actions = num_actions
@@ -51,7 +50,6 @@ class SimpleNet(nn.Module):
 
 class Agent:
     """A simple, feed-forward agent."""
-
     def __init__(self, model: nn.Module, discount: float, device: torch.device):
         self._model = model
         self._discount = discount
@@ -63,7 +61,7 @@ class Agent:
         observation = torch.Tensor(state.observation).unsqueeze(0).to(self._device)
         logits, _ = self._model(observation)
         logits = torch.squeeze(logits, dim=0)
-        action = torch_dist.Categorical(logits=logits).sample((1,)).squeeze()
+        action = torch_dist.Categorical(logits=logits).sample((1, )).squeeze()
         return action, logits
 
     def loss(self, trajs: Transition):
@@ -102,7 +100,7 @@ class Agent:
 
         # Note that we use mean here, rather than sum as in canonical IMPALA.
         # Compute policy gradient loss.
-        pg_loss = - (learner_logits * adv * torch.Tensor(mask)).sum(0).mean()
+        pg_loss = -(learner_logits * adv * torch.Tensor(mask)).sum(0).mean()
 
         # Baseline loss.
         bl_loss = 0.5 * (torch.square(td) * torch.Tensor(mask)).sum(0).mean()
@@ -119,7 +117,6 @@ class Agent:
 
 class Learner:
     """Slim wrapper around an agent/optimizer pair."""
-
     def __init__(self, agent: Agent, actor_opt: torch.optim.Optimizer, critic_opt: torch.optim.Optimizer):
         self._agent = agent
         self._actor_opt = actor_opt
@@ -138,11 +135,9 @@ class Learner:
         return extra
 
 
-def run_actor(agent: Agent, get_params: Callable[[], OrderedDict[str, torch.Tensor]],
-              enqueue_traj: Callable[[State], None],
-              enqueue_info: Callable[[dict], None],
-              unroll_len: int,
-              num_trajectories: int):
+def run_actor(agent: Agent, get_params: Callable[[], OrderedDict[str, torch.Tensor]], enqueue_traj: Callable[[State],
+                                                                                                             None],
+              enqueue_info: Callable[[dict], None], unroll_len: int, num_trajectories: int):
     """Runs an actor to produce num_trajectories trajectories."""
     env = gym.make(config.env_id)
     obs = env.reset()
@@ -163,7 +158,7 @@ def run_actor(agent: Agent, get_params: Callable[[], OrderedDict[str, torch.Tens
             state = State(reward=reward, observation=next_state, discount=(1 - done) * 1.)
             if done:
                 try:
-                    enqueue_info({"cumulative_reward": cumulative_reward}, block=False) # noqa
+                    enqueue_info({"cumulative_reward": cumulative_reward}, block=False)  # noqa
                 except queue.Full:
                     pass
                 obs = env.reset()
