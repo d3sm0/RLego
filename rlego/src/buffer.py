@@ -44,9 +44,9 @@ class Trajectory:
         states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
         states = torch.stack(states, 0)
         actions = torch.stack(actions, 0)
-        rewards = torch.tensor(rewards)
+        rewards = torch.stack(rewards, 0)
         next_states = torch.stack(next_states, 0)
-        dones = torch.tensor(dones)
+        dones = torch.stack(dones, 0)
         return Transition(states, actions, rewards, next_states, dones, infos)
 
 
