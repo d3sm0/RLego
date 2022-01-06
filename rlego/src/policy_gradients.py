@@ -40,15 +40,14 @@ def advantage_loss_fn(model: ActorCriticType, obs, actions, rewards, next_obs, d
 
     if model_prime is None:
         model_prime = model
-    ALL = torch.arange(obs.shape[0])
 
     with torch.no_grad():
         not_done = torch.logical_not(dones)
-        value_target = target_value_fn(discount, model_prime, next_obs, not_done, rewards)
+        current_value = model_prime.critic(obs)
 
     next_values = model.critic(next_obs)
     q_values = rewards + discount * torch.einsum("s,s->s", not_done, next_values)
-    advantage = q_values - value_target
+    advantage = q_values - current_value
     return advantage, advantage ** 2
 
 
