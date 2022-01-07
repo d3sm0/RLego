@@ -30,7 +30,7 @@ class ActorCriticType(torch.nn.Module, abc.ABC):
         raise NotImplementedError
 
 
-def advantage_loss_fn(model: ActorCriticType, obs, actions, rewards, next_obs, dones, discount, model_prime: ActorCriticType = None):
+def advantage_loss_fn(model: ActorCriticType, obs, actions, rewards, next_obs, dones, discount: float, model_prime: ActorCriticType = None):
     assert len(obs.shape) == 2
     assert len(rewards.shape) == 1
     assert len(next_obs.shape) == 2
@@ -48,8 +48,8 @@ def advantage_loss_fn(model: ActorCriticType, obs, actions, rewards, next_obs, d
 
     current_value = model_prime.critic(obs)
 
-    discount = torch.einsum("s,s->s", not_done, discount)
-    td_error = rlego.td_learning(current_value, rewards, discount, next_values)
+    discount = not_done * discount
+    td_error = rlego.td_learning(current_value, rewards, discount, next_values, stop_grad=False)
     advantage = td_error
     return advantage, advantage ** 2
 
