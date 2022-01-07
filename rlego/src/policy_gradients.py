@@ -44,11 +44,10 @@ def advantage_loss_fn(model: ActorCriticType, obs, actions, rewards, next_obs, d
 
     with torch.no_grad():
         not_done = torch.logical_not(dones)
+        discount = not_done * discount
         next_values = model.critic(next_obs)
 
     current_value = model_prime.critic(obs)
-
-    discount = not_done * discount
     td_error = rlego.td_learning(current_value, rewards, discount, next_values, stop_grad=False)
     advantage = td_error
     return advantage, advantage ** 2
