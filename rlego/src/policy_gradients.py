@@ -1,5 +1,6 @@
 import abc
 
+import rlego
 import torch
 import torch.distributions as torch_dist
 
@@ -43,11 +44,13 @@ def advantage_loss_fn(model: ActorCriticType, obs, actions, rewards, next_obs, d
 
     with torch.no_grad():
         not_done = torch.logical_not(dones)
-        current_value = model_prime.critic(obs)
+        next_values = model.critic(next_obs)
 
-    next_values = model.critic(next_obs)
-    q_values = rewards + discount * torch.einsum("s,s->s", not_done, next_values)
-    advantage = q_values - current_value
+    current_value = model_prime.critic(obs)
+
+    discount = torch.einsum("s,s->s", not_done, discount)
+    td_error = rlego.td_learning(current_value, rewards, discount, next_values)
+    advantage = td_error
     return advantage, advantage ** 2
 
 
