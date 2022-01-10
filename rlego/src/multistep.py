@@ -73,7 +73,9 @@ def lambda_returns(r_t: torch.Tensor,
 def discounted_returns(r_t: torch.Tensor,
                        discount_t: torch.Tensor,
                        v_t: torch.Tensor,
-                       stop_target_gradients: bool = False) -> torch.Tensor:
+                       stop_target_gradients: bool = True) -> torch.Tensor:
+    if stop_target_gradients:
+        v_t = v_t.detach()
     bootstrapped_v = torch.ones_like(discount_t) * v_t
     return lambda_returns(r_t, discount_t, bootstrapped_v, lambda_=1, stop_target_gradients=stop_target_gradients)
 

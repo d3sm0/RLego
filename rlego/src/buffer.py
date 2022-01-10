@@ -51,7 +51,7 @@ class Trajectory:
 
 
 class Buffer:
-    def __init__(self, buffer_size):
+    def __init__(self, buffer_size:int):
         self._data = []
         self._buffer_size = buffer_size
         self._next_idx = 0
