@@ -64,7 +64,7 @@ def lambda_returns(r_t: torch.Tensor,
         g = r_t[i] + discount_t[i] * ((1 - lambda_[i]) * v_t[i] + lambda_[i] * g)
         returns.insert(0, g)
 
-    returns = torch.tensor(returns)
+    returns = torch.stack(returns)
     if stop_target_gradients:
         returns = returns.detach()
     return returns
