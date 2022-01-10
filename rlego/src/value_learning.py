@@ -1,7 +1,7 @@
 import torch
 
 
-def td_learning(current_value: torch.Tensor,
+def td_learning(v_tm1: torch.Tensor,
                 r_t: torch.Tensor,
                 discount_t: torch.Tensor,
                 v_t: torch.Tensor,
@@ -9,7 +9,7 @@ def td_learning(current_value: torch.Tensor,
     if stop_grad:
         v_t = v_t.detach()
     discounted_value = torch.einsum("s,s->s", discount_t, v_t)
-    td = r_t + discounted_value - current_value
+    td = r_t + discounted_value - v_tm1
     return td
 
 

@@ -72,9 +72,18 @@ class Buffer:
         self._next_idx = (self._next_idx + 1) % self._buffer_size
 
     def sample(self, batch_size: int) -> Transition:
-        idxes = torch.randint(len(self._data) - 1, (batch_size, ))
+        idxes = torch.randint(len(self._data) - 1, (batch_size,))
 
         batch = [self._data[idx] for idx in idxes]
         batch = list(map(lambda x: torch.stack(x), list(zip(*batch))))
 
         return Transition(*batch)
+
+
+def check_shape_transition(transition: Transition) -> bool:
+    # TODO better error message
+    assert len(transition.state.shape) == 2
+    assert len(transition.reward.shape) == 1
+    assert len(transition.next_state.shape) == 2
+    assert len(transition.done.shape) == 1
+    return True
