@@ -36,7 +36,7 @@ class Trajectory:
         return self.data[start_idx:start_idx + horizon]
 
     def sample(self, batch_size: int = 1, horizon: int = 1):
-        start_idxs = torch.randint(self.__len__(), (batch_size, ))
+        start_idxs = torch.randint(self.__len__() - 1, (batch_size, ))
         # TODO we should be able to have something N X T but it seems hard for now we keep it like this
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
@@ -44,9 +44,9 @@ class Trajectory:
         states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
         states = torch.stack(states, 0)
         actions = torch.stack(actions, 0)
-        rewards = torch.tensor(rewards)
+        rewards = torch.stack(rewards, 0)
         next_states = torch.stack(next_states, 0)
-        dones = torch.tensor(dones)
+        dones = torch.stack(dones, 0)
         return Transition(states, actions, rewards, next_states, dones, infos)
 
 
