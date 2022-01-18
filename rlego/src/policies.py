@@ -37,7 +37,7 @@ class GaussianPolicy(torch.nn.Module):
 
 class SoftmaxPolicy(torch.nn.Module):
     def __init__(self, input_features: int, n_actions: int, tau: float = 1.):
-        super(GaussianPolicy, self).__init__()
+        super(SoftmaxPolicy, self).__init__()
         self.linear = nn.Linear(input_features, n_actions)
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
