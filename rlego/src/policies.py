@@ -27,10 +27,13 @@ class BetaPolicy(torch.nn.Module):
 class GaussianPolicy(torch.nn.Module):
     def __init__(self, input_features: int, action_dim: int):
         super(GaussianPolicy, self).__init__()
-        self.linear = nn.Linear(input_features, 2 * action_dim)
+        self.linear = nn.Sequential(
+            nn.Linear(input_features, 2 * action_dim),
+            nn.Unflatten(1, (action_dim, 2)),
+        )
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
-        mean, scale = torch.split(self.linear(x), split_size_or_sections=1, dim=-1)
+        mean, scale = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
         dist = torch_dist.Normal(loc=mean, scale=F.softplus(scale))
         return dist
 
