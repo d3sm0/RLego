@@ -9,7 +9,7 @@ def vanilla_policy_gradient(log_prob: torch.Tensor, q_t: torch.Tensor) -> torch.
 
 
 def policy_gradient(dist: torch_dist.Distribution, a_t: torch.Tensor, q_t: torch.Tensor) -> torch.Tensor:
-    return vanilla_policy_gradient(dist.log_prob(a_t.detach()), q_t)
+    return vanilla_policy_gradient(dist.log_prob(a_t.detach()).sum(-1), q_t)
 
 
 class ActorCriticType(torch.nn.Module, abc.ABC):

@@ -31,6 +31,7 @@ class Transition(NamedTuple):
 
 class SimpleNet(nn.Module):
     """A simple network."""
+
     def __init__(self, obs_dim: int, num_actions: int, h_dim: int = 32):
         super().__init__()
         self._num_actions = num_actions
@@ -50,6 +51,7 @@ class SimpleNet(nn.Module):
 
 class Agent:
     """A simple, feed-forward agent."""
+
     def __init__(self, model: nn.Module, discount: float, device: torch.device):
         self._model = model
         self._discount = discount
@@ -61,7 +63,7 @@ class Agent:
         observation = torch.Tensor(state.observation).unsqueeze(0).to(self._device)
         logits, _ = self._model(observation)
         logits = torch.squeeze(logits, dim=0)
-        action = torch_dist.Categorical(logits=logits).sample((1, )).squeeze()
+        action = torch_dist.Categorical(logits=logits).sample((1,)).squeeze()
         return action, logits
 
     def loss(self, trajs: Transition):
@@ -117,6 +119,7 @@ class Agent:
 
 class Learner:
     """Slim wrapper around an agent/optimizer pair."""
+
     def __init__(self, agent: Agent, actor_opt: torch.optim.Optimizer, critic_opt: torch.optim.Optimizer):
         self._agent = agent
         self._actor_opt = actor_opt
