@@ -11,10 +11,13 @@ class BetaPolicy(torch.nn.Module):
         # Note that we can trasform any standard beta to a bounded beta in x in (a,b)
         # by x = z * (b-a) + a
         super(BetaPolicy, self).__init__()
-        self.linear = nn.Linear(input_features, 2 * action_dim)
+        self.linear = nn.Sequential(
+            nn.Linear(input_features, 2 * action_dim),
+            nn.Unflatten(1, (action_dim, 2)),
+        )
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
-        alpha, beta = torch.split(self.linear(x), split_size_or_sections=1, dim=-1)
+        alpha, beta = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
         # we want alpha and beta > 0
         alpha = F.softplus(alpha)
         beta = F.softplus(beta)
