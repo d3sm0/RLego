@@ -28,6 +28,8 @@ class BetaPolicy(torch.nn.Module):
 
 
 class GaussianPolicy(torch.nn.Module):
+    eps = 1e-4
+
     def __init__(self, input_features: int, action_dim: int):
         super(GaussianPolicy, self).__init__()
         self.linear = nn.Sequential(
@@ -38,16 +40,16 @@ class GaussianPolicy(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         policy_params = self.linear(x)
         mean, scale = policy_params[:, :, 0], policy_params[:, :, 1]
-        dist = torch_dist.Normal(loc=mean.squeeze(1), scale=F.softplus(scale.squeeze(1)) + 1e-3)
+        dist = torch_dist.Normal(loc=mean, scale=F.softplus(scale) + self.eps)
         return dist
 
 
 class SoftmaxPolicy(torch.nn.Module):
     def __init__(self, input_features: int, n_actions: int, tau: float = 1.):
         super(SoftmaxPolicy, self).__init__()
-        self.tau = tau
+        self.tau = 1 / tau
         self.linear = nn.Linear(input_features, n_actions)
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         logits = self.linear(x)
-        return torch_dist.Categorical(logits=1 / self.tau * logits)
+        return torch_dist.Categorical(logits=self.tau * logits)
