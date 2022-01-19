@@ -14,7 +14,7 @@ import tree
 from torch._vmap_internals import vmap
 from tqdm import trange
 
-from rlego.src import vtrace
+import rlego
 
 
 class State(NamedTuple):
@@ -36,17 +36,18 @@ class SimpleNet(nn.Module):
         super().__init__()
         self._num_actions = num_actions
         self.policy = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.Tanh(), nn.Linear(h_dim, h_dim), nn.Tanh(),
-                                    nn.Linear(h_dim, self._num_actions))
+                                    rlego.SoftmaxPolicy(h_dim, self._num_actions)
+                                    )
         self.baseline = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.Tanh(), nn.Linear(h_dim, h_dim), nn.Tanh(),
                                       nn.Linear(h_dim, 1))
 
     def forward(self, observation) -> Tuple[torch.Tensor, torch.Tensor]:
         """Process a batch of observations."""
         hidden = observation
-        policy_logits = self.policy(hidden)
+        poliy = self.policy(hidden)
         baseline = self.baseline(hidden)
         baseline = torch.squeeze(baseline, dim=-1)
-        return policy_logits, baseline
+        return poliy, baseline
 
 
 class Agent:
@@ -61,10 +62,9 @@ class Agent:
     def step(self, state: State) -> Tuple[torch.Tensor, torch.Tensor]:
         """Steps on a single observation."""
         observation = torch.Tensor(state.observation).unsqueeze(0).to(self._device)
-        logits, _ = self._model(observation)
-        logits = torch.squeeze(logits, dim=0)
-        action = torch_dist.Categorical(logits=logits).sample((1,)).squeeze()
-        return action, logits
+        policy, _ = self._model(observation)
+        action = policy.sample()
+        return action.squeeze(0), policy.logits
 
     def loss(self, trajs: Transition):
         """Computes a loss of trajs wrt params."""
@@ -72,8 +72,8 @@ class Agent:
         obs = torch.Tensor(trajs.state.observation).to(self._device)
         T, B, *_ = obs.shape
 
-        learner_logits, baseline_with_bootstrap = self._model(obs.flatten(0, 1))
-        learner_logits = learner_logits.view(T, B, -1)
+        learner_policy, baseline_with_bootstrap = self._model(obs.flatten(0, 1))
+        learner_logits = learner_policy.log_prob.view(T, B, -1)
         learner_logits = learner_logits[:-1]
 
         baseline_with_bootstrap = baseline_with_bootstrap.view(T, B)
@@ -91,18 +91,18 @@ class Agent:
         discount = not_done * self._discount
         # The step is uninteresting if we transitioned LAST -> FIRST.
         mask = torch.roll(not_done, 1, dims=0)
-        reward = torch.Tensor(timestep.reward).to(self._device)
+        reward = torch.tensor(timestep.reward).to(self._device)
 
         learner_policy = torch_dist.Categorical(logits=learner_logits)
         learner_logits = learner_policy.log_prob(actions)
         behavior_logits = torch_dist.Categorical(logits=behavior_logits).log_prob(actions)
         rho = torch.exp(learner_logits - behavior_logits).detach()
-        v_trace_fn = vmap(vtrace.vtrace_td_error_advantage, in_dims=1, out_dims=1)
+        v_trace_fn = vmap(rlego.vtrace_td_error_advantage, in_dims=1, out_dims=1)
         adv, td = v_trace_fn(baseline, baseline_tp1, reward, discount, rho)
 
         # Note that we use mean here, rather than sum as in canonical IMPALA.
         # Compute policy gradient loss.
-        pg_loss = -(learner_logits * adv * torch.Tensor(mask)).sum(0).mean()
+        pg_loss = - (torch.tensor(mask) * rlego.vanilla_policy_gradient(learner_logits, adv)).sum(0)
 
         # Baseline loss.
         bl_loss = 0.5 * (torch.square(td) * torch.Tensor(mask)).sum(0).mean()

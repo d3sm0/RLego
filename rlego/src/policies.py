@@ -19,8 +19,8 @@ class BetaPolicy(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         alpha, beta = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
         # we want alpha and beta > 0
-        alpha = F.softplus(alpha)
-        beta = F.softplus(beta)
+        alpha = F.softplus(alpha.squeeze(1))
+        beta = F.softplus(beta.squeeze(1))
         alpha = alpha * (1 - self.eps) + self.eps
         beta = beta * (1 - self.eps) + self.eps
         dist = torch_dist.Beta(concentration0=alpha, concentration1=beta)
@@ -37,7 +37,7 @@ class GaussianPolicy(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         mean, scale = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
-        dist = torch_dist.Normal(loc=mean, scale=F.softplus(scale))
+        dist = torch_dist.Normal(loc=mean.squeeze(1), scale=F.softplus(scale.squeeze(1)) + 1e-3)
         return dist
 
 

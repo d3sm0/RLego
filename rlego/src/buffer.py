@@ -72,7 +72,7 @@ class Buffer:
         self._next_idx = (self._next_idx + 1) % self._buffer_size
 
     def sample(self, batch_size: int) -> Transition:
-        idxes = torch.randint(len(self._data) - 1, (batch_size,))
+        idxes = torch.randint(len(self._data) , (batch_size,))
 
         batch = [self._data[idx] for idx in idxes]
         batch = list(map(lambda x: torch.stack(x), list(zip(*batch))))
