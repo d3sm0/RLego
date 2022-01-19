@@ -36,7 +36,8 @@ class GaussianPolicy(torch.nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
-        mean, scale = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
+        policy_params = self.linear(x)
+        mean, scale = policy_params[:, :, 0], policy_params[:, :, 1]
         dist = torch_dist.Normal(loc=mean.squeeze(1), scale=F.softplus(scale.squeeze(1)) + 1e-3)
         return dist
 
