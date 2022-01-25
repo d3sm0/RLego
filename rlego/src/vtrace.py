@@ -11,7 +11,8 @@ class VTraceOutput(NamedTuple):
     q_estimate: T
 
 
-def vtrace_target(v_tm1, v_t, r_t, discount_t, rho_tm1, lambda_=1., clip_rho_threshold=1.):
+def vtrace_target(v_tm1: T, v_t: T, r_t: T, discount_t: T, rho_tm1: T, lambda_: float = 1.,
+                  clip_rho_threshold: Union[T, float] = 1.):
     c_tm1 = torch.clamp(rho_tm1, max=1.) * lambda_
     clipped_rhos_tm1 = torch.clamp(rho_tm1, max=clip_rho_threshold)
 
@@ -26,10 +27,11 @@ def vtrace_target(v_tm1, v_t, r_t, discount_t, rho_tm1, lambda_=1., clip_rho_thr
     return target
 
 
-def vtrace_td_error_and_advantage(v_tm1, v_t, r_t, discount_t, rho_tm1, lambda_=1., clip_rho_threshold: float = 1.0,
+def vtrace_td_error_and_advantage(v_tm1: T, v_t: T, r_t: T, discount_t: T, rho_tm1: T, lambda_: float = 1.,
+                                  clip_rho_threshold: float = 1.0,
                                   clip_pg_rho_threshold: float = 1.0):
     target_tm1 = vtrace_target(v_tm1, v_t, r_t, discount_t, rho_tm1, clip_rho_threshold=clip_rho_threshold,
-                           lambda_=lambda_)
+                               lambda_=lambda_)
     v_t = torch.cat([lambda_ * target_tm1[1:] + (1 - lambda_) * v_tm1[1:], v_t[-1:]], dim=0)
     q_t = r_t + discount_t * v_t
     rho_clipped = torch.clamp(rho_tm1, max=clip_pg_rho_threshold)

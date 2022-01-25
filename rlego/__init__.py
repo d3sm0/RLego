@@ -1,4 +1,4 @@
-from rlego.src.buffer import Buffer, Trajectory, Transition, check_shape_transition, get_trajectory
+from rlego.src.buffer import Buffer, Trajectory, Transition, check_shape_transition, _transpose
 from rlego.src.multistep import lambda_returns, discounted_returns, n_step_bootstrapped_returns, general_off_policy_returns_from_q_and_v
 from rlego.src.policies import BetaPolicy, SoftmaxPolicy, GaussianPolicy
 from rlego.src.policy_gradients import policy_gradient, ActorCriticType, vanilla_policy_gradient

@@ -42,10 +42,10 @@ class Trajectory:
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
     def transpose(self) -> Transition:
-        return get_trajectory(self.data)
+        return _transpose(self.data)
 
 
-def get_trajectory(data: List[Transition]) -> Transition:
+def _transpose(data: List[Transition]) -> Transition:
     states, actions, rewards, next_states, dones, infos = list(zip(*data))
     states = torch.stack(states, 0)
     actions = torch.stack(actions, 0)
@@ -80,7 +80,7 @@ class Buffer:
         idxes = torch.randint(len(self._data), (batch_size,))
 
         batch = [self._data[idx] for idx in idxes]
-        return get_trajectory(batch)
+        return _transpose(batch)
 
 
 def check_shape_transition(transition: Transition) -> bool:
