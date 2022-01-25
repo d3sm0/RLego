@@ -1,3 +1,6 @@
+from typing import Union, Tuple
+
+import numpy as np
 import torch
 import torch.distributions as torch_dist
 import torch.nn as nn
@@ -28,16 +31,21 @@ class BetaPolicy(torch.nn.Module):
 
 
 class GaussianPolicy(torch.nn.Module):
-    def __init__(self, input_features: int, action_dim: int):
+    def __init__(self, input_features: int, action_dim: Union[int, Tuple[int, ...]]):
         super(GaussianPolicy, self).__init__()
+        if isinstance(action_dim, int):
+            action_dim = (action_dim,)
+
+        action_dim_params = np.prod(action_dim)
+
         self.linear = nn.Sequential(
-            nn.Linear(input_features, 2 * action_dim),
-            nn.Unflatten(1, (action_dim, 2)),
+            nn.Linear(input_features, 2 * action_dim_params),
+            nn.Unflatten(1, (2, *action_dim)),
         )
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         policy_params = self.linear(x)
-        mean, scale = policy_params[:, :, 0], policy_params[:, :, 1]
+        mean, scale = policy_params[:, 0], policy_params[:, 1]
         dist = torch_dist.Normal(loc=mean, scale=F.softplus(scale))
         return dist
 
