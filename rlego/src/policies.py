@@ -20,7 +20,8 @@ class BetaPolicy(torch.nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
-        alpha, beta = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
+        policy_params = self.linear(x)
+        alpha, beta = torch.split(policy_params, split_size_or_sections=policy_params.shape[-2], dim=-1)
         # we want alpha and beta > 0
         alpha = F.softplus(alpha.squeeze(1))
         beta = F.softplus(beta.squeeze(1))
