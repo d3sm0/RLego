@@ -22,8 +22,8 @@ class BetaPolicy(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         alpha, beta = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
         # we want alpha and beta > 0
-        alpha = F.softplus(alpha)
-        beta = F.softplus(beta)
+        alpha = F.softplus(alpha.squeeze(1))
+        beta = F.softplus(beta.squeeze(1))
         alpha = alpha * (1 - self.eps) + self.eps
         beta = beta * (1 - self.eps) + self.eps
         dist = torch_dist.Beta(concentration0=alpha, concentration1=beta)
@@ -31,6 +31,8 @@ class BetaPolicy(torch.nn.Module):
 
 
 class GaussianPolicy(torch.nn.Module):
+    eps = 1e-4
+
     def __init__(self, input_features: int, action_dim: Union[int, Tuple[int, ...]]):
         super(GaussianPolicy, self).__init__()
         if isinstance(action_dim, int):
@@ -46,16 +48,16 @@ class GaussianPolicy(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         policy_params = self.linear(x)
         mean, scale = policy_params[:, 0], policy_params[:, 1]
-        dist = torch_dist.Normal(loc=mean, scale=F.softplus(scale))
+        dist = torch_dist.Normal(loc=mean, scale=F.softplus(scale) * (1 - self.eps) + self.eps)
         return dist
 
 
 class SoftmaxPolicy(torch.nn.Module):
     def __init__(self, input_features: int, n_actions: int, tau: float = 1.):
         super(SoftmaxPolicy, self).__init__()
-        self.tau = tau
+        self.tau = 1 / tau
         self.linear = nn.Linear(input_features, n_actions)
 
     def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
         logits = self.linear(x)
-        return torch_dist.Categorical(logits=1 / self.tau * logits)
+        return torch_dist.Categorical(logits=self.tau * logits)
