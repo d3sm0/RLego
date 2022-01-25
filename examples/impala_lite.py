@@ -97,7 +97,7 @@ class Agent:
         learner_logits = learner_policy.log_prob(actions)
         behavior_logits = torch_dist.Categorical(logits=behavior_logits).log_prob(actions)
         rho = torch.exp(learner_logits - behavior_logits).detach()
-        v_trace_fn = vmap(rlego.vtrace_td_error_advantage, in_dims=1, out_dims=1)
+        v_trace_fn = vmap(rlego.vtrace_td_error_and_advantage, in_dims=1, out_dims=1)
         adv, td = v_trace_fn(baseline, baseline_tp1, reward, discount, rho)
 
         # Note that we use mean here, rather than sum as in canonical IMPALA.

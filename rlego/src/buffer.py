@@ -3,19 +3,20 @@ from typing import List, Union
 
 import torch
 
+T = torch.Tensor
+
 
 @dataclasses.dataclass
 class Transition:
-    state: torch.tensor
-    action: torch.tensor
-    reward: torch.tensor
-    next_state: torch.tensor
-    done: torch.tensor
+    state: T
+    action: T
+    reward: T
+    next_state: T
+    done: T
     info: Union[dict, List[dict]]
 
     def __iter__(self):
-        for attr in ["state", "action", "reward", "next_state", "done", "info"]:
-            yield getattr(self, attr)
+        return iter(dataclasses.asdict(self).values())
 
 
 class Trajectory:
@@ -41,13 +42,17 @@ class Trajectory:
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
     def get_trajectory(self) -> Transition:
-        states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
-        states = torch.stack(states, 0)
-        actions = torch.stack(actions, 0)
-        rewards = torch.stack(rewards, 0)
-        next_states = torch.stack(next_states, 0)
-        dones = torch.stack(dones, 0)
-        return Transition(states, actions, rewards, next_states, dones, infos)
+        return get_trajectory(self.data)
+
+
+def get_trajectory(data: List[Transition]) -> Transition:
+    states, actions, rewards, next_states, dones, infos = list(zip(*data))
+    states = torch.stack(states, 0)
+    actions = torch.stack(actions, 0)
+    rewards = torch.stack(rewards, 0)
+    next_states = torch.stack(next_states, 0)
+    dones = torch.stack(dones, 0)
+    return Transition(states, actions, rewards, next_states, dones, infos)
 
 
 class Buffer:
@@ -75,9 +80,7 @@ class Buffer:
         idxes = torch.randint(len(self._data), (batch_size,))
 
         batch = [self._data[idx] for idx in idxes]
-        batch = list(map(lambda x: torch.stack(x), list(zip(*batch))))
-
-        return Transition(*batch)
+        return get_trajectory(batch)
 
 
 def check_shape_transition(transition: Transition) -> bool:
