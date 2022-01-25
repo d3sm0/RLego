@@ -1,3 +1,6 @@
+from typing import Union, Tuple
+
+import numpy as np
 import torch
 import torch.distributions as torch_dist
 import torch.nn as nn

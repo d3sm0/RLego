@@ -41,7 +41,7 @@ class Trajectory:
         # TODO we should be able to have something N X T but it seems hard for now we keep it like this
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
-    def get_trajectory(self) -> Transition:
+    def transpose(self) -> Transition:
         return get_trajectory(self.data)
 
 
