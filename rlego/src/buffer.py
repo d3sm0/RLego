@@ -74,7 +74,7 @@ def _transpose(data) -> Transition:
     if len(data) == 0:
         raise ValueError("Trajectory is empty")
 
-    states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
+    states, actions, rewards, next_states, dones, infos = list(zip(*data))
     states = torch.cat(states, 0)
     actions = magic_stack(actions)
     rewards = magic_stack(rewards)
