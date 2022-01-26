@@ -75,10 +75,10 @@ def _transpose(data) -> Transition:
         raise ValueError("Trajectory is empty")
 
     states, actions, rewards, next_states, dones, infos = list(zip(*data))
-    states = torch.cat(states, 0)
+    states = magic_stack(states)
     actions = magic_stack(actions)
     rewards = magic_stack(rewards)
-    next_states = torch.cat(next_states, 0)
+    next_states = magic_stack(next_states)
     dones = magic_stack(dones)
     infos2 = collections.defaultdict(list)
     for info in infos:
@@ -88,7 +88,13 @@ def _transpose(data) -> Transition:
     return Transition(states, actions, rewards, next_states, dones, infos)
 
 
-def magic_stack(tensor_or_list: Union[torch.Tensor, list]) -> torch.Tensor:
+def magic_stack(tensor_or_list: Union[torch.Tensor, list]) -> Union[torch.Tensor, np.ndarray]:
+    if tensor_or_list[0].numel() > 1:
+        if len(tensor_or_list[0].shape) > 1:
+            return torch.cat(tensor_or_list, 0)
+        else:
+            return torch.stack(tensor_or_list, 0)
+
     if isinstance(tensor_or_list[0], torch.Tensor):
         return torch.stack(tensor_or_list, 0)
     if isinstance(tensor_or_list[0], np.ndarray):
