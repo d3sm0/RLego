@@ -1,23 +1,23 @@
 import collections
 import dataclasses
-from typing import List, Union
-
 import numpy as np
 import torch
+from typing import List, Union
+
+T = torch.Tensor
 
 
 @dataclasses.dataclass
 class Transition:
-    state: torch.tensor
-    action: torch.tensor
-    reward: torch.tensor
-    next_state: torch.tensor
-    done: torch.tensor
+    state: T
+    action: T
+    reward: T
+    next_state: T
+    done: T
     info: Union[dict, List[dict]]
 
     def __iter__(self):
-        for attr in ["state", "action", "reward", "next_state", "done", "info"]:
-            yield getattr(self, attr)
+        return iter(dataclasses.asdict(self).values())
 
     @property
     def states(self):
@@ -67,21 +67,25 @@ class Trajectory:
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
     def transpose(self) -> Transition:
-        if len(self.data) == 0:
-            raise ValueError("Trajectory is empty")
+        return _transpose(self.data)
 
-        states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
-        states = torch.cat(states, 0)
-        actions = magic_stack(actions)
-        rewards = magic_stack(rewards)
-        next_states = torch.cat(next_states, 0)
-        dones = magic_stack(dones)
-        infos2 = collections.defaultdict(list)
-        for info in infos:
-            for key, value in info.items():
-                infos2[key].append(value)
-        infos = {k: magic_stack(v) for k, v in infos2.items()}
-        return Transition(states, actions, rewards, next_states, dones, infos)
+
+def transpose(data) -> Transition:
+    if len(data) == 0:
+        raise ValueError("Trajectory is empty")
+
+    states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
+    states = torch.cat(states, 0)
+    actions = magic_stack(actions)
+    rewards = magic_stack(rewards)
+    next_states = torch.cat(next_states, 0)
+    dones = magic_stack(dones)
+    infos2 = collections.defaultdict(list)
+    for info in infos:
+        for key, value in info.items():
+            infos2[key].append(value)
+    infos = {k: magic_stack(v) for k, v in infos2.items()}
+    return Transition(states, actions, rewards, next_states, dones, infos)
 
 
 def magic_stack(tensor_or_list: Union[torch.Tensor, list]) -> torch.Tensor:
@@ -118,9 +122,7 @@ class Buffer:
         idxes = torch.randint(len(self._data), (batch_size,))
 
         batch = [self._data[idx] for idx in idxes]
-        batch = list(map(lambda x: torch.stack(x), list(zip(*batch))))
-
-        return Transition(*batch)
+        return _transpose(batch)
 
 
 def check_shape_transition(transition: Transition) -> bool:

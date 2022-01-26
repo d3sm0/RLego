@@ -6,6 +6,7 @@ import torch.distributions as torch_dist
 import torch.nn as nn
 import torch.nn.functional as F
 
+T = torch.Tensor
 
 class BetaPolicy(torch.nn.Module):
     eps = 1e-4
@@ -16,11 +17,12 @@ class BetaPolicy(torch.nn.Module):
         super(BetaPolicy, self).__init__()
         self.linear = nn.Sequential(
             nn.Linear(input_features, 2 * action_dim),
-            nn.Unflatten(1, (action_dim, 2)),
+            nn.Unflatten(-1, (action_dim, 2)),
         )
 
-    def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
-        alpha, beta = torch.split(self.linear(x), split_size_or_sections=1, dim=2)
+    def forward(self, x: T) -> torch_dist.Distribution:
+        policy_params = self.linear(x)
+        alpha, beta = torch.split(policy_params, split_size_or_sections=policy_params.shape[-2], dim=-1)
         # we want alpha and beta > 0
         alpha = F.softplus(alpha.squeeze(1))
         beta = F.softplus(beta.squeeze(1))
@@ -45,7 +47,7 @@ class GaussianPolicy(torch.nn.Module):
             nn.Unflatten(1, (2, *action_dim)),
         )
 
-    def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
+    def forward(self, x: T) -> torch_dist.Distribution:
         policy_params = self.linear(x)
         mean, scale = policy_params[:, 0], policy_params[:, 1]
         dist = torch_dist.Normal(loc=mean, scale=F.softplus(scale) * (1 - self.eps) + self.eps)
@@ -56,8 +58,8 @@ class SoftmaxPolicy(torch.nn.Module):
     def __init__(self, input_features: int, n_actions: int, tau: float = 1.):
         super(SoftmaxPolicy, self).__init__()
         self.tau = 1 / tau
-        self.linear = nn.Linear(input_features, n_actions)
+        self.linear = nn.Linear(input_features, n_actions, bias=False)
 
-    def forward(self, x: torch.Tensor) -> torch_dist.Distribution:
+    def forward(self, x: T) -> torch_dist.Distribution:
         logits = self.linear(x)
         return torch_dist.Categorical(logits=self.tau * logits)
