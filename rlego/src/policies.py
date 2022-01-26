@@ -1,12 +1,10 @@
-from typing import Union, Tuple
-
-import numpy as np
 import torch
 import torch.distributions as torch_dist
 import torch.nn as nn
 import torch.nn.functional as F
 
 T = torch.Tensor
+
 
 class BetaPolicy(torch.nn.Module):
     eps = 1e-4
