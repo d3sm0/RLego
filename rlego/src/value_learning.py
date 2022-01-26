@@ -1,7 +1,6 @@
 from typing import Union
 
 import torch
-
 from rlego.src.multistep import general_off_policy_returns_from_q_and_v
 
 T = torch.Tensor
@@ -19,8 +18,8 @@ def q_learning(q_tm1: T, r_t: T, discount_t: T, q_t: T) -> T:
     return td
 
 
-def retrace_continuous(q_tm1: T, q_t: T, v_t: T, r_t: T, discount_t: T, log_rhos: T, lambda_: Union[T, float]) -> T:
-    """Retrace continuous.
+def retrace(q_tm1: T, q_t: T, v_t: T, r_t: T, discount_t: T, rho_t: T, lambda_: Union[T, float]) -> T:
+    """Retrace .
     See "Safe and Efficient Off-Policy Reinforcement Learning" by Munos et al.
     (https://arxiv.org/abs/1606.02647).
     Args:
@@ -30,16 +29,14 @@ def retrace_continuous(q_tm1: T, q_t: T, v_t: T, r_t: T, discount_t: T, log_rhos
       v_t: Value estimates of the target policy at times [1, ..., K].
       r_t: reward at times [1, ..., K].
       discount_t: discount at times [1, ..., K].
-      log_rhos: Log importance weight pi_target/pi_behavior evaluated at actions
+      rho_t: Log importance weight pi_target/pi_behavior evaluated at actions
         collected using behavior policy [1, ..., K - 1].
       lambda_: scalar or a vector of mixing parameter lambda.
-      stop_target_gradients: bool indicating whether or not to apply stop gradient
-        to targets.
     Returns:
       Retrace error.
     """
 
-    c_t = log_rhos.exp().clamp_max(1.) * lambda_
+    c_t = rho_t.clamp_max(1.) * lambda_
 
     # The generalized returns are independent of Q-values and cs at the final
     # state.

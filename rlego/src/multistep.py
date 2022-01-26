@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import torch
 
 T = torch.Tensor
@@ -120,13 +122,27 @@ def discounted_returns(r_t: T,
     return lambda_returns(r_t, discount_t, bootstrapped_v, lambda_=1)
 
 
-def n_step_bootstrapped_returns(
-        r_t: T,
-        discount_t: T,
-        v_t: T,
-        n: int,
-        lambda_t: float = 1.,
-) -> T:
+def pad_n_step(r_t, discount_t: T, v_t, n: int, lambda_t=1) -> Tuple[T, T, T, T, T, int]:
+    assert v_t.ndim == 2  # B x T
+    seq_len = v_t.shape[1]
+    pad_size = min(n - 1, seq_len)
+    padding = v_t[:, -1:].repeat(1, pad_size)
+    targets = torch.cat([v_t[:, n - 1:], padding], dim=-1)
+
+    # Maybe change scalar lambda to an array.
+    lambda_t = torch.ones_like(discount_t) * lambda_t
+    # Pad sequences. Shape is now (T + n - 1,).
+    pad_zeros = torch.zeros((v_t.shape[0], n - 1)).to(v_t.device)
+    pad_ones = torch.ones((v_t.shape[0], n - 1)).to(v_t.device)
+    r_t = torch.cat([r_t, pad_zeros], dim=1)
+    discount_t = torch.cat([discount_t, pad_ones], dim=1)
+    lambda_t = torch.cat([lambda_t, pad_ones], dim=1)
+    padding = v_t[:, -1:].repeat(1, n - 1)
+    v_t = torch.cat([v_t, padding], dim=1)
+    return r_t, discount_t, v_t, targets, lambda_t, seq_len
+
+
+def n_step_bootstrapped_returns(r_t: T, discount_t: T, v_t: T, targets: T, lambda_t: T, seq_len: int, n: int) -> T:
     """Computes strided n-step bootstrapped return targets over a sequence.
   The returns are computed according to the below equation iterated `n` times:
      Gₜ = rₜ₊₁ + γₜ₊₁ [(1 - λₜ₊₁) vₜ₊₁ + λₜ₊₁ Gₜ₊₁].
@@ -143,24 +159,6 @@ def n_step_bootstrapped_returns(
   Returns:
     estimated bootstrapped returns at times [0, ...., T-1]
   """
-    # chex.assert_rank([r_t, discount_t, v_t, lambda_t], [1, 1, 1, {0, 1}])
-    # chex.assert_type([r_t, discount_t, v_t, lambda_t], float)
-    # chex.assert_equal_shape([r_t, discount_t, v_t])
-    seq_len = r_t.shape[0]
-
-    # Maybe change scalar lambda to an array.
-    lambda_t = torch.ones_like(discount_t) * lambda_t
-
-    # Shift bootstrap values by n and pad end of sequence with last value v_t[-1].
-    pad_size = min(n - 1, seq_len)
-    targets = torch.cat([v_t[n - 1:], torch.tensor([v_t[-1]] * pad_size)])
-
-    # Pad sequences. Shape is now (T + n - 1,).
-    r_t = torch.cat([r_t, torch.zeros(n - 1)])
-    discount_t = torch.cat([discount_t, torch.ones(n - 1)])
-    lambda_t = torch.cat([lambda_t, torch.ones(n - 1)])
-    v_t = torch.cat([v_t, torch.tensor([v_t[-1]] * (n - 1))])
-
     # Work backwards to compute n-step returns.
     for i in reversed(range(n)):
         r_ = r_t[i:i + seq_len]
@@ -170,3 +168,91 @@ def n_step_bootstrapped_returns(
         targets = r_ + discount_ * ((1. - lambda_) * v_ + lambda_ * targets)
 
     return targets
+
+
+def truncated_generalized_advantage_estimation(
+        r_t: T,
+        discount_t: T,
+        lambda_: T,
+        values: T
+) -> T:
+    """Computes truncated generalized advantage estimates for a sequence length k.
+    The advantages are computed in a backwards fashion according to the equation:
+    Âₜ = δₜ + (γλ) * δₜ₊₁ + ... + ... + (γλ)ᵏ⁻ᵗ⁺¹ * δₖ₋₁
+    where δₜ = rₜ₊₁ + γₜ₊₁ * v(sₜ₊₁) - v(sₜ).
+    See Proximal Policy Optimization Algorithms, Schulman et al.:
+    https://arxiv.org/abs/1707.06347
+    Note: This paper uses a different notation than the RLax standard
+    convention that follows Sutton & Barto. We use rₜ₊₁ to denote the reward
+    received after acting in state sₜ, while the PPO paper uses rₜ.
+    Args:
+      r_t: Sequence of rewards at times [1, k]
+      discount_t: Sequence of discounts at times [1, k]
+      lambda_: Mixing parameter; a scalar or sequence of lambda_t at times [1, k]
+      values: Sequence of values under π at times [0, k]
+      stop_target_gradients: bool indicating whether or not to apply stop gradient
+        to targets.
+    Returns:
+      Multistep truncated generalized advantage estimation at times [0, k-1].
+    """
+    lambda_ = torch.ones_like(discount_t) * lambda_  # If scalar, make into vector.
+    delta_t = r_t + discount_t * values[1:] - values[:-1]
+
+    # Iterate backwards to calculate advantages.
+    advantage_t = [torch.tensor(0.).to(r_t.device)]
+    for t in reversed(range(delta_t.shape[0])):
+        advantage_t.insert(0, delta_t[t] + lambda_[t] * discount_t[t] * advantage_t[0])
+    adv = torch.stack(advantage_t)[:-1]
+    return adv
+
+
+def importance_corrected_td_errors(
+        r_t: T,
+        discount_t: T,
+        rho_tm1: T,
+        lambda_: T,
+        values: T
+) -> T:
+    """Computes the multistep td errors with per decision importance sampling.
+    Given a trajectory of length `T+1`, generated under some policy π, for each
+    time-step `t` we can estimate a multistep temporal difference error δₜ(ρ,λ),
+    by combining rewards, discounts, and state values, according to a mixing
+    parameter `λ` and importance sampling ratios ρₜ = π(aₜ|sₜ) / μ(aₜ|sₜ):
+      td-errorₜ = ρₜ δₜ(ρ,λ)
+      δₜ(ρ,λ) = δₜ + ρₜ₊₁ λₜ₊₁ γₜ₊₁ δₜ₊₁(ρ,λ),
+    where δₜ = rₜ₊₁ + γₜ₊₁ vₜ₊₁ - vₜ is the one step, temporal difference error
+    for the agent's state value estimates. This is equivalent to computing
+    the λ-return with λₜ = ρₜ (e.g. using the `lambda_returns` function from
+    above), and then computing errors as  td-errorₜ = ρₜ(Gₜ - vₜ).
+    See "A new Q(λ) with interim forward view and Monte Carlo equivalence"
+    by Sutton et al. (http://proceedings.mlr.press/v32/sutton14.html).
+    Args:
+      r_t: sequence of rewards rₜ for timesteps t in [1, T].
+      discount_t: sequence of discounts γₜ for timesteps t in [1, T].
+      rho_tm1: sequence of importance ratios for all timesteps t in [0, T-1].
+      lambda_: mixing parameter; scalar or have per timestep values in [1, T].
+      values: sequence of state values under π for all timesteps t in [0, T].
+      stop_target_gradients: bool indicating whether or not to apply stop gradient
+        to targets.
+    Returns:
+      Off-policy estimates of the multistep td errors.
+    """
+
+    v_tm1 = values[:-1]  # Predictions to compute errors for.
+    v_t = values[1:]  # Values for bootstrapping.
+    pad_ = torch.tensor([1.]).to(v_t.device)
+    rho_t = torch.cat((rho_tm1[1:], pad_))  # Unused dummy value.
+    lambda_ = torch.ones_like(discount_t) * lambda_  # If scalar, make into vector.
+
+    # Compute the one step temporal difference errors.
+    one_step_delta = r_t + discount_t * v_t - v_tm1
+
+    # Work backwards to compute `delta_{T-1}`, ..., `delta_0`.
+    delta, errors = 0.0, []
+    for i in reversed(range(one_step_delta.shape[0])):
+        delta = one_step_delta[i] + discount_t[i] * rho_t[i] * lambda_[i] * delta
+        errors.insert(0, delta)
+
+    errors = torch.stack(errors)
+    errors = rho_tm1 * errors
+    return errors

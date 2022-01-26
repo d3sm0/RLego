@@ -12,7 +12,7 @@ class VTraceOutput(NamedTuple):
 
 
 def vtrace_target(v_tm1: T, v_t: T, r_t: T, discount_t: T, rho_tm1: T, lambda_: float = 1.,
-                  clip_rho_threshold: Union[T, float] = 1.):
+                  clip_rho_threshold: float = 1.):
     c_tm1 = torch.clamp(rho_tm1, max=1.) * lambda_
     clipped_rhos_tm1 = torch.clamp(rho_tm1, max=clip_rho_threshold)
 
