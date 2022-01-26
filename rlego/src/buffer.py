@@ -1,6 +1,8 @@
+import collections
 import dataclasses
 from typing import List, Union
 
+import numpy as np
 import torch
 
 
@@ -16,6 +18,30 @@ class Transition:
     def __iter__(self):
         for attr in ["state", "action", "reward", "next_state", "done", "info"]:
             yield getattr(self, attr)
+
+    @property
+    def states(self):
+        return self.state
+
+    @property
+    def actions(self):
+        return self.action
+
+    @property
+    def rewards(self):
+        return self.reward
+
+    @property
+    def next_states(self):
+        return self.next_state
+
+    @property
+    def dones(self):
+        return self.done
+
+    @property
+    def infos(self):
+        return self.info
 
 
 class Trajectory:
@@ -41,13 +67,30 @@ class Trajectory:
         return [self.get_partial(start_idx, horizon) for start_idx in start_idxs][0]
 
     def transpose(self) -> Transition:
+        if len(self.data) == 0:
+            raise ValueError("Trajectory is empty")
+
         states, actions, rewards, next_states, dones, infos = list(zip(*self.data))
-        states = torch.stack(states, 0)
-        actions = torch.stack(actions, 0)
-        rewards = torch.stack(rewards, 0)
-        next_states = torch.stack(next_states, 0)
-        dones = torch.stack(dones, 0)
+        states = torch.cat(states, 0)
+        actions = magic_stack(actions)
+        rewards = magic_stack(rewards)
+        next_states = torch.cat(next_states, 0)
+        dones = magic_stack(dones)
+        infos2 = collections.defaultdict(list)
+        for info in infos:
+            for key, value in info.items():
+                infos2[key].append(value)
+        infos = {k: magic_stack(v) for k, v in infos2.items()}
         return Transition(states, actions, rewards, next_states, dones, infos)
+
+
+def magic_stack(tensor_or_list: Union[torch.Tensor, list]) -> torch.Tensor:
+    if isinstance(tensor_or_list[0], torch.Tensor):
+        return torch.stack(tensor_or_list, 0)
+    if isinstance(tensor_or_list[0], np.ndarray):
+        return np.stack(tensor_or_list, 0)
+    else:
+        return torch.tensor(tensor_or_list)
 
 
 class Buffer:
