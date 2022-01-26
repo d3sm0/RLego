@@ -70,7 +70,7 @@ class Trajectory:
         return _transpose(self.data)
 
 
-def transpose(data) -> Transition:
+def _transpose(data) -> Transition:
     if len(data) == 0:
         raise ValueError("Trajectory is empty")
 
