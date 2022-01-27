@@ -1,8 +1,9 @@
 import collections
 import dataclasses
+from typing import List, Union
+
 import numpy as np
 import torch
-from typing import List, Union
 
 T = torch.Tensor
 
@@ -89,14 +90,14 @@ def _transpose(data) -> Transition:
 
 
 def magic_stack(tensor_or_list: Union[torch.Tensor, list]) -> Union[torch.Tensor, np.ndarray]:
-    if tensor_or_list[0].numel() > 1:
-        if len(tensor_or_list[0].shape) > 1:
-            return torch.cat(tensor_or_list, 0)
+    if isinstance(tensor_or_list[0], torch.Tensor):
+        if tensor_or_list[0].numel() > 1:
+            if len(tensor_or_list[0].shape) > 1:
+                return torch.cat(tensor_or_list, 0)
+            else:
+                return torch.stack(tensor_or_list, 0)
         else:
             return torch.stack(tensor_or_list, 0)
-
-    if isinstance(tensor_or_list[0], torch.Tensor):
-        return torch.stack(tensor_or_list, 0)
     if isinstance(tensor_or_list[0], np.ndarray):
         return np.stack(tensor_or_list, 0)
     else:
