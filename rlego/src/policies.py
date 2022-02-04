@@ -20,10 +20,10 @@ class BetaPolicy(torch.nn.Module):
 
     def forward(self, x: T) -> torch_dist.Distribution:
         policy_params = self.linear(x)
-        alpha, beta = torch.split(policy_params, split_size_or_sections=policy_params.shape[-2], dim=-1)
+        alpha, beta = torch.split(policy_params, split_size_or_sections=1, dim=-1)
         # we want alpha and beta > 0
-        alpha = F.softplus(alpha.squeeze(1))
-        beta = F.softplus(beta.squeeze(1))
+        alpha = F.softplus(alpha.squeeze(dim=-1))
+        beta = F.softplus(beta.squeeze(dim=-1))
         alpha = alpha * (1 - self.eps) + self.eps
         beta = beta * (1 - self.eps) + self.eps
         dist = torch_dist.Beta(concentration0=alpha, concentration1=beta)
