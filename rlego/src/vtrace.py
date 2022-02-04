@@ -13,8 +13,8 @@ class VTraceOutput(NamedTuple):
 
 def vtrace_target(v_tm1: T, v_t: T, r_t: T, discount_t: T, rho_tm1: T, lambda_: float = 1.,
                   clip_rho_threshold: float = 1.):
-    c_tm1 = torch.clamp(rho_tm1, max=1.) * lambda_
-    clipped_rhos_tm1 = torch.clamp(rho_tm1, max=clip_rho_threshold)
+    c_tm1 = torch.clamp(rho_tm1, min=1.) * lambda_
+    clipped_rhos_tm1 = torch.clamp(rho_tm1, min=clip_rho_threshold)
 
     td_errors = clipped_rhos_tm1 * (r_t + discount_t * v_t - v_tm1)
 
@@ -34,6 +34,6 @@ def vtrace_td_error_and_advantage(v_tm1: T, v_t: T, r_t: T, discount_t: T, rho_t
                                lambda_=lambda_)
     v_t = torch.cat([lambda_ * target_tm1[1:] + (1 - lambda_) * v_tm1[1:], v_t[-1:]], dim=0)
     q_t = r_t + discount_t * v_t
-    rho_clipped = torch.clamp(rho_tm1, max=clip_pg_rho_threshold)
+    rho_clipped = torch.clamp(rho_tm1, min=clip_pg_rho_threshold)
     adv = rho_clipped * (q_t - v_tm1)
     return VTraceOutput(adv, target_tm1, q_t)
