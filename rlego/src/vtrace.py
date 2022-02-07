@@ -34,6 +34,6 @@ def vtrace_td_error_and_advantage(v_tm1: T, v_t: T, r_t: T, discount_t: T, rho_t
                                lambda_=lambda_)
     v_t = torch.cat([lambda_ * target_tm1[1:] + (1 - lambda_) * v_tm1[1:], v_t[-1:]], dim=0)
     q_t = r_t + discount_t * v_t
-    rho_clipped = torch.clamp(rho_tm1, min=clip_pg_rho_threshold)
-    adv = rho_clipped * (q_t - v_tm1)
+    # rho_clipped = torch.clamp(rho_tm1, min=clip_pg_rho_threshold)
+    adv = (q_t - v_tm1)
     return VTraceOutput(adv, target_tm1, q_t)

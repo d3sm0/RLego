@@ -7,7 +7,7 @@ T = torch.Tensor
 
 
 class BetaPolicy(torch.nn.Module):
-    eps = 1e-4
+    eps = 1e-3
 
     def __init__(self, input_features: int, action_dim: int):
         # Note that we can trasform any standard beta to a bounded beta in x in (a,b)
@@ -24,14 +24,14 @@ class BetaPolicy(torch.nn.Module):
         # we want alpha and beta > 0
         alpha = F.softplus(alpha.squeeze(dim=-1))
         beta = F.softplus(beta.squeeze(dim=-1))
-        alpha = alpha * (1 - self.eps) + self.eps
-        beta = beta * (1 - self.eps) + self.eps
+        alpha = alpha + self.eps
+        beta = beta + self.eps
         dist = torch_dist.Beta(concentration0=alpha, concentration1=beta)
         return dist
 
 
 class GaussianPolicy(torch.nn.Module):
-    eps = 1e-4
+    eps = 1e-3
 
     def __init__(self, input_features: int, action_dim: int):
         super(GaussianPolicy, self).__init__()
@@ -42,7 +42,7 @@ class GaussianPolicy(torch.nn.Module):
 
     def forward(self, x: T) -> torch_dist.Distribution:
         policy_params = self.linear(x)
-        mean, scale = torch.split(policy_params, split_size_or_sections=policy_params.shape[-2], dim=-1)
+        mean, scale = torch.split(policy_params, split_size_or_sections=1, dim=-1)
         dist = torch_dist.Normal(loc=torch.tanh(mean.squeeze(-1)), scale=F.softplus(scale.squeeze(-1)) + self.eps)
         return dist
 
