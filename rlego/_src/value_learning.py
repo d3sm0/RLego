@@ -23,7 +23,6 @@ __all__ = [
 
 from typing import Union
 
-import functorch
 import torch
 from rlego._src import multistep
 from rlego._src import utils
@@ -220,6 +219,7 @@ def quantile_q_learning(dist_q_tm1: Tensor, tau_q_tm1: Tensor, a_tm1: Tensor, r_
 
 def quantile_expected_sarsa(dist_q_tm1: Tensor, tau_q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor,
                             dist_q_t: Tensor, probs_a_t: Tensor, huber_param: float = 0.):
+    import functorch
     dist_qa_tm1 = torch.index_select(dist_q_tm1, 1, a_tm1.unsqueeze(0)).squeeze(1)
     dist_target = r_t + discount_t * dist_q_t
 
