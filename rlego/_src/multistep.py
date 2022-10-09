@@ -102,9 +102,9 @@ def n_step_bootstrapped_returns(r_t: Tensor, discount_t: Tensor, v_t: Tensor, n:
     targets = torch.cat([v_t[n - 1:], v_t[-1:].repeat(pad_size)])
 
     # Pad sequences. Shape is now (T + n - 1,).
-    r_t = torch.cat([r_t, torch.zeros(n - 1)])
-    discount_t = torch.cat([discount_t, torch.ones(n - 1)])
-    lambda_t = torch.cat([lambda_t, torch.ones(n - 1)])
+    r_t = torch.cat([r_t, torch.zeros(n - 1, device=r_t.device)])
+    discount_t = torch.cat([discount_t, torch.ones(n - 1, device=r_t.device)])
+    lambda_t = torch.cat([lambda_t, torch.ones(n - 1, device=r_t.device)])
     v_t = torch.cat([v_t, v_t[-1:].repeat(n - 1)])
     # Work backwards to compute n-step returns.
     time_idx = torch.arange(n).flip(0)
