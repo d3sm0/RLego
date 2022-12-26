@@ -42,13 +42,13 @@ def td_lambda(v_tm1: Tensor, r_t: Tensor, discount_t: Tensor, v_t: Tensor, lambd
 
 
 def sarsa(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, q_t: Tensor, a_t: Tensor):
-    target_tm1 = r_t + discount_t * utils.batched_select(q_t, a_t)
-    return target_tm1 - utils.batched_select(q_tm1, a_tm1)
+    target_tm1 = r_t + discount_t * utils.batched_index(q_t, a_t)
+    return target_tm1 - utils.batched_index(q_tm1, a_tm1)
 
 
 def expected_sarsa(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, q_t: Tensor, probs_a_t: Tensor):
     target_tm1 = r_t + discount_t * torch.einsum("a, a", probs_a_t, q_t)
-    return target_tm1 - utils.batched_select(q_tm1, a_tm1)
+    return target_tm1 - utils.batched_index(q_tm1, a_tm1)
 
 
 def sarsa_lambda(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, q_t: Tensor, a_t: Tensor,
@@ -60,27 +60,27 @@ def sarsa_lambda(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, 
 
 def q_learning(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, q_t: Tensor) -> Tensor:
     q_t = q_t.max(-1).values
-    td = r_t + discount_t * q_t - utils.batched_select(q_tm1, a_tm1)
+    td = r_t + discount_t * q_t - utils.batched_index(q_tm1, a_tm1)
     return td
 
 
 def double_q_learning(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, q_t_value: Tensor,
                       q_t_selector: Tensor) -> Tensor:
-    target_tm1 = r_t + discount_t * utils.batched_select(q_t_value, q_t_selector.argmax(dim=-1))
-    return target_tm1 - utils.batched_select(q_tm1, a_tm1)
+    target_tm1 = r_t + discount_t * utils.batched_index(q_t_value, q_t_selector.argmax(dim=-1))
+    return target_tm1 - utils.batched_index(q_tm1, a_tm1)
 
 
 def persistent_q_learning(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, q_t: Tensor,
                           action_gap_scale: float):
-    corrected_q_t = (1 - action_gap_scale) * q_t.max(dim=-1).values + action_gap_scale * utils.batched_select(q_t,
+    corrected_q_t = (1 - action_gap_scale) * q_t.max(dim=-1).values + action_gap_scale * utils.batched_index(q_t,
                                                                                                               a_tm1)
     target_tm1 = r_t + discount_t * corrected_q_t
-    return target_tm1 - utils.batched_select(q_tm1, a_tm1)
+    return target_tm1 - utils.batched_index(q_tm1, a_tm1)
 
 
 def qv_learning(q_tm1: Tensor, a_tm1: Tensor, r_t: Tensor, discount_t: Tensor, v_t: Tensor):
     target_tm1 = r_t + discount_t * v_t
-    return target_tm1 - utils.batched_select(q_tm1, a_tm1)
+    return target_tm1 - utils.batched_index(q_tm1, a_tm1)
 
 
 def qv_max(v_tm1: Tensor, r_t: Tensor, discount_t: Tensor, q_t: Tensor):
@@ -192,18 +192,15 @@ def categorical_double_q_learning(q_atoms_tm1: Tensor, q_logits_tm1: Tensor, a_t
     return torch.nn.functional.cross_entropy(utils.batched_select(q_logits_tm1, a_tm1), target)
 
 
-def quantile_regression_loss(dist_src: Tensor, tau_src: Tensor, dist_target: Tensor, huber_param: float = 0.):
+def quantile_regression_loss(dist_src: Tensor, tau_src: Tensor, dist_target: Tensor, huber_param: float = 1.):
     delta = dist_target.unsqueeze(0) - dist_src.unsqueeze(1)
-    weight = torch.abs(tau_src.unsqueeze(1) - (delta < 0.).to(torch.float32))
+    weight = torch.abs(tau_src.unsqueeze(1) - (delta < 0.).to(torch.float32)).detach()
     if huber_param == 0:
         delta = torch.abs(delta)
     else:
-        delta = torch.nn.functional.huber_loss(
-            dist_src.unsqueeze(1),
-            dist_target.unsqueeze(0),
-            delta=huber_param,
-            reduction='none'
-        )
+        abs_delta = torch.abs(delta)
+        quadratic = torch.clamp_max(abs_delta, max=huber_param)
+        delta = 0.5 * quadratic.pow(2) + huber_param * (abs_delta - quadratic)
     return (weight * delta).sum(0).mean(-1)
 
 

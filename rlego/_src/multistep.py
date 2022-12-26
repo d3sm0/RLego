@@ -76,7 +76,7 @@ def lambda_returns(
 
 def n_step_bootstrapped_returns(r_t: Tensor, discount_t: Tensor, v_t: Tensor, n: int, lambda_t: float = 1.) -> Tensor:
     """Computes strided n-step bootstrapped return targets over a sequence.
-  torch.Tensorhe returns are computed according to the below equation iterated `n` times:
+  The returns are computed according to the below equation iterated `n` times:
      Gₜ = rₜ₊₁ + γₜ₊₁ [(1 - λₜ₊₁) vₜ₊₁ + λₜ₊₁ Gₜ₊₁].
   When lambda_t == 1. (default), this reduces to
      Gₜ = rₜ₊₁ + γₜ₊₁ * (rₜ₊₂ + γₜ₊₂ * (... * (rₜ₊ₙ + γₜ₊ₙ * vₜ₊ₙ ))).
@@ -124,7 +124,7 @@ def discounted_returns(r_t: Tensor, discount_t: Tensor, v_t: Tensor) -> Tensor:
 
 
 def importance_corrected_td_errors(r_t: Tensor, discount_t: Tensor, rho_tm1: Tensor, values: Tensor,
-                                   lambda_: Tensor) -> Tensor:
+                                   lambda_: float) -> Tensor:
     """Computes the multistep td errors with per decision importance sampling.
     Given a trajectory of length `torch.Tensor+1`, generated under some policy π, for each
     time-step `t` we can estimate a multistep temporal difference error δₜ(ρ,λ),

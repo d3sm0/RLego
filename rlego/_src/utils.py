@@ -13,8 +13,9 @@ def polyak_update(
         tau: float = 1.,
 ) -> None:
     # zip does not raise an exception if length of parameters does not match.
-    for param, target_param in zip(params, target_params, strict=True):
-        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+    with torch.no_grad():
+        for param, target_param in zip(params, target_params, strict=True):
+            target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
 
 def batched_index(values: Tensor, indices: Tensor):

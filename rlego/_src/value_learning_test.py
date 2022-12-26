@@ -740,7 +740,7 @@ class QuantileRegressionLossTest(parameterized.TestCase):
     @parameterized.named_parameters(
         ('nohuber', 0.),
         ('huber', 2.))
-    def test_quantile_regression_loss_batch(self, huber_param):
+    def test_quantile_regression_loss_batch(self, huber_param:float):
         """Tests for a full batch."""
         loss_fn = value_learning.quantile_regression_loss
         loss_fn = functorch.vmap(functools.partial(
